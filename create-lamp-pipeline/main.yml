@@ -59,7 +59,7 @@
           InstType: 't2.nano'
           EnvType: 'stg'
           KeyPair: 'nuKP'
-          ManagementIp: '108.162.138.154'
+          ManagementIp: '127.0.0.1'
           VPCCIDR: '10.20'
       register: cf_pipe_ret
       async: 600
