@@ -1,0 +1,59 @@
+---
+- hosts: localhost
+  become: yes
+  tasks:
+    - name: grab repo to local
+      git:
+        repo: 'https://github.com/1adam/aws.git'
+        dest: '/opt/aws-repo'
+        version: 'master'
+
+
+
+
+- hosts: localhost
+  become: yes
+  become_user: root
+  vars:
+    ec2_keypair_name: ""
+  tasks:
+    - name: preflight var check
+      fail:
+        msg: "Missing an important parameter."
+      when: "ec2_keypair_name == ''"
+
+    - name: "Create a LAMP+CodeDeploy AMI from the latest Ubuntu-64 LTS"
+      cloudformation:
+        stack_name: "mkNewAMI"
+        state: "present"
+        region: 'us-east-1'
+        template: '/opt/aws-repo/cloudformation-templates/ec2-codedeploy/Create-Ubuntu16-LAMP-AMI.yml'
+        template_parameters:
+          KeyPair: "{{ec2_keypair_name}}"
+      register: cf_ret
+      async: 600
+      poll: 30
+
+#   todo // delete the mkNewAMI stack once the AMI is available
+
+    - name: Create the Pipeline using the freshly-built AMI
+      cloudformation:
+        stack_name: "ShinyNewPipeline"
+        state: "present"
+        region: "us-east-1"
+        template: "/opt/aws-repo/cloudformation-templates/pipeline/create-pipeline.yml"
+        template_parameters:
+          AppName: 'ShinyNewApp'
+          CustomAMI: cf_ret.stack_outputs.FinalAMI
+          InstType: 't2.nano'
+          EnvType: 'stg'
+          KeyPair: 'nuKP'
+          ManagementIp: '108.162.138.154'
+          VPCCIDR: '10.20'
+      register: cf_pipe_ret
+      async: 600
+      poll: 30
+
+    - name: debug pipeOut
+      debug:
+        var: cf_pipe_ret
