@@ -43,8 +43,8 @@
         region: "us-east-1"
         template: "/opt/aws-repo/cloudformation-templates/pipeline/create-pipeline.yml"
         template_parameters:
-          AppName: 'ShinyNewApp'
-          CustomAMI: cf_ret.stack_outputs.FinalAMI
+          AppName: 'shinynewapp'
+          CustomAMI: "{{cf_ret.stack_outputs.FinalAMI}}"
           InstType: 't2.nano'
           EnvType: 'stg'
           KeyPair: 'nuKP'
