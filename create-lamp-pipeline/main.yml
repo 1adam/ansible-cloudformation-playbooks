@@ -8,9 +8,6 @@
         dest: '/opt/aws-repo'
         version: 'master'
 
-
-
-
 - hosts: localhost
   become: yes
   become_user: root
@@ -34,7 +31,21 @@
       async: 600
       poll: 30
 
-#   todo // delete the mkNewAMI stack once the AMI is available
+    - name: wait for the new AMI to become 'available'
+      ec2_ami_facts:
+        image_ids:
+          - "{{ cf_ret.stack_outputs.FinalAMI }}"
+      register: descNewAMI
+      until:  "descNewAMI.images[0].state.find('available') != -1"
+      retries: 20
+      delay: 30
+
+    - name: remove the old/tmp stack used to create AMI
+      cloudformation:
+        stack_name: "mkNewAMI"
+        state: "absent"
+      async: 300
+      poll: 0
 
     - name: Create the Pipeline using the freshly-built AMI
       cloudformation:
