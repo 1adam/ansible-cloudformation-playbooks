@@ -13,58 +13,92 @@
   become_user: root
   vars:
     ec2_keypair_name: ""
+    ec2_base_ami: ""
   tasks:
     - name: preflight var check
       fail:
         msg: "Missing an important parameter."
       when: "ec2_keypair_name == ''"
 
-    - name: "Create a LAMP+CodeDeploy AMI from the latest Ubuntu-64 LTS"
+    - block:
+      - name: "Create a LAMP+CodeDeploy AMI from the latest Ubuntu-64 LTS"
+        cloudformation:
+          stack_name: "mkNewAMI"
+          state: "present"
+          region: 'us-east-1'
+          template: '/opt/aws-repo/cloudformation-templates/ec2-codedeploy/Create-Ubuntu16-LAMP-AMI.yml'
+          template_parameters:
+            KeyPair: "{{ec2_keypair_name}}"
+        register: cf_ret
+        async: 600
+        poll: 30
+
+      - name: wait for the new AMI to become 'available'
+        ec2_ami_facts:
+          image_ids:
+            - "{{ cf_ret.stack_outputs.FinalAMI }}"
+        register: descNewAMI
+        until:  "descNewAMI.images[0].state.find('available') != -1"
+        retries: 20
+        delay: 30
+
+      - name: remove the old/tmp stack used to create AMI
+        cloudformation:
+          stack_name: "mkNewAMI"
+          state: "absent"
+        async: 300
+        poll: 0
+
+      - name: set base AMI fact
+        set_fact:
+          ec2_base_ami: cf_ret.stack_outputs.FinalAMI
+      when: "ec2_base_ami == ''"
+
+    - name: Create the staging ASG
       cloudformation:
-        stack_name: "mkNewAMI"
-        state: "present"
-        region: 'us-east-1'
-        template: '/opt/aws-repo/cloudformation-templates/ec2-codedeploy/Create-Ubuntu16-LAMP-AMI.yml'
+        stack_name: "shinynewapp-stg"
+        region: "us-east-1"
+        template: "/opt/aws-repo/cloudformation-templates/pipeline/create-base-asg.yml"
         template_parameters:
-          KeyPair: "{{ec2_keypair_name}}"
-      register: cf_ret
+          CustomAMI: "{{ ec2_base_ami }}"
+          InstType: "t2.nano"
+          EnvType: "stg"
+          KeyPair: "nuKP"
+          ManagementIp: "108.162.138.154"
+          VPCid: "vpc-26e9975e"
+          SubnetIDs: "subnet-87af02da,subnet-11810a2e"
+      register: cf_stg_asg_ret
       async: 600
       poll: 30
 
-    - name: wait for the new AMI to become 'available'
-      ec2_ami_facts:
-        image_ids:
-          - "{{ cf_ret.stack_outputs.FinalAMI }}"
-      register: descNewAMI
-      until:  "descNewAMI.images[0].state.find('available') != -1"
-      retries: 20
-      delay: 30
-
-    - name: remove the old/tmp stack used to create AMI
+    - name: Create the production ASG
       cloudformation:
-        stack_name: "mkNewAMI"
-        state: "absent"
-      async: 300
-      poll: 0
-
-    - name: Create the Pipeline using the freshly-built AMI
-      cloudformation:
-        stack_name: "ShinyNewPipeline"
-        state: "present"
+        stack_name: "shinynewapp-prod"
         region: "us-east-1"
-        template: "/opt/aws-repo/cloudformation-templates/pipeline/create-pipeline.yml"
+        template: "/opt/aws-repo/cloudformation-templates/pipeline/create-base-asg.yml"
         template_parameters:
-          AppName: 'shinynewapp'
-          CustomAMI: "{{cf_ret.stack_outputs.FinalAMI}}"
-          InstType: 't2.nano'
-          EnvType: 'stg'
-          KeyPair: 'nuKP'
-          ManagementIp: '127.0.0.1'
-          VPCCIDR: '10.20'
+          CustomAMI: "{{ ec2_base_ami }}"
+          InstType: "t2.nano"
+          EnvType: "stg"
+          KeyPair: "nuKP"
+          ManagementIp: "108.162.138.154"
+          VPCid: "vpc-26e9975e"
+          SubnetIDs: "subnet-87af02da,subnet-11810a2e"
+      register: cf_prod_asg_ret
+      async: 600
+      poll: 30
+
+    - name: Create the pipeline
+      cloudformation:
+        stack_name: "shinynewapp-pipe"
+        region: "us-east-1"
+        template: "/opt/aws-repo/cloudformation-templates/pipeline/create-base-pipeline.yml"
+        template_parameters:
+          AppName: "shinynewapp-app"
+          ASG: "{{ cf_stg_asg_ret.stack_outputs.ASGname }}"
+          TargetGroupName: "{{ cf_stg_asg_ret.stack_outputs.TGname }}"
+          ASGprod: "{{ cf_prod_asg_ret.stack_outputs.ASGname }}"
+          TargetGroupNamePROD: "{{ cf_prod_asg_ret.stack_outputs.TGname }}"
       register: cf_pipe_ret
       async: 600
       poll: 30
-
-    - name: debug pipeOut
-      debug:
-        var: cf_pipe_ret
