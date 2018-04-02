@@ -64,7 +64,7 @@
           InstType: "t2.nano"
           EnvType: "stg"
           KeyPair: "nuKP"
-          ManagementIp: "108.162.138.154"
+          ManagementIp: "127.0.0.1"
           VPCid: "vpc-26e9975e"
           SubnetIDs: "subnet-87af02da,subnet-11810a2e"
       register: cf_stg_asg_ret
@@ -81,7 +81,7 @@
           InstType: "t2.nano"
           EnvType: "stg"
           KeyPair: "nuKP"
-          ManagementIp: "108.162.138.154"
+          ManagementIp: "127.0.0.1"
           VPCid: "vpc-26e9975e"
           SubnetIDs: "subnet-87af02da,subnet-11810a2e"
       register: cf_prod_asg_ret
