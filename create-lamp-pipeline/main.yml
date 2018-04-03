@@ -52,12 +52,12 @@
 
       - name: set base AMI fact
         set_fact:
-          ec2_base_ami: cf_ret.stack_outputs.FinalAMI
+          ec2_base_ami: "{{ cf_ret.stack_outputs.FinalAMI }}"
       when: "ec2_base_ami == ''"
 
     - name: Create the VPC and subnets
       cloudformation:
-        stack_name: shinynewapp-vpc
+        stack_name: "brandnewapp-vpc"
         region: "{{aws_region}}"
         template: "/opt/aws-repo/cloudformation-templates/pipeline/create-base-vpc.yml"
         template_parameters:
@@ -69,7 +69,7 @@
 
     - name: Create the staging ASG
       cloudformation:
-        stack_name: "shinynewapp-stg"
+        stack_name: "brandnewapp-stg"
         region: "{{aws_region}}"
         template: "/opt/aws-repo/cloudformation-templates/pipeline/create-base-asg.yml"
         template_parameters:
@@ -86,7 +86,7 @@
 
     - name: Create the production ASG
       cloudformation:
-        stack_name: "shinynewapp-prod"
+        stack_name: "brandnewapp-prod"
         region: "{{aws_region}}"
         template: "/opt/aws-repo/cloudformation-templates/pipeline/create-base-asg.yml"
         template_parameters:
@@ -103,11 +103,11 @@
 
     - name: Create the pipeline
       cloudformation:
-        stack_name: "shinynewapp-pipe"
+        stack_name: "brandnewapp-pipe"
         region: "{{aws_region}}"
         template: "/opt/aws-repo/cloudformation-templates/pipeline/create-base-pipeline.yml"
         template_parameters:
-          AppName: "shinynewapp-app"
+          AppName: "brandnewapp-app"
           ASG: "{{ cf_stg_asg_ret.stack_outputs.ASGname }}"
           TargetGroupName: "{{ cf_stg_asg_ret.stack_outputs.TGname }}"
           ASGprod: "{{ cf_prod_asg_ret.stack_outputs.ASGname }}"
