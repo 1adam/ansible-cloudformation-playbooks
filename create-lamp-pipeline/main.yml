@@ -54,10 +54,22 @@
           ec2_base_ami: cf_ret.stack_outputs.FinalAMI
       when: "ec2_base_ami == ''"
 
+    - name: Create the VPC and subnets
+      cloudformation:
+        stack_name: shinynewapp-vpc
+        region: !Sub ${AWS::Region}
+        template: "/opt/aws-repo/cloudformation-templates/pipeline/create-base-vpc.yml"
+        template_parameters:
+          VPCcidr: "10.20.0.0/16"
+          SNcidrs: "10.20.0.0/24, 10.20.1.0/24"
+      register: cf_vpc_ret
+      async: 300
+      poll: 30
+
     - name: Create the staging ASG
       cloudformation:
         stack_name: "shinynewapp-stg"
-        region: "us-east-1"
+        region: !Sub ${AWS::Region}
         template: "/opt/aws-repo/cloudformation-templates/pipeline/create-base-asg.yml"
         template_parameters:
           CustomAMI: "{{ ec2_base_ami }}"
@@ -65,8 +77,8 @@
           EnvType: "stg"
           KeyPair: "nuKP"
           ManagementIp: "127.0.0.1"
-          VPCid: "vpc-26e9975e"
-          SubnetIDs: "subnet-87af02da,subnet-11810a2e"
+          VPCid: "{{ cf_vpc_ret.stack_outputs.VPCid }}"
+          SubnetIDs: "{{cf_vpc_ret.stack_outputs.SN1id}},{{cf_vpc_ret.stack_outputs.SN2id}}"
       register: cf_stg_asg_ret
       async: 600
       poll: 30
@@ -74,16 +86,16 @@
     - name: Create the production ASG
       cloudformation:
         stack_name: "shinynewapp-prod"
-        region: "us-east-1"
+        region: !Sub ${AWS::Region}
         template: "/opt/aws-repo/cloudformation-templates/pipeline/create-base-asg.yml"
         template_parameters:
           CustomAMI: "{{ ec2_base_ami }}"
           InstType: "t2.nano"
-          EnvType: "stg"
+          EnvType: "prod"
           KeyPair: "nuKP"
           ManagementIp: "127.0.0.1"
-          VPCid: "vpc-26e9975e"
-          SubnetIDs: "subnet-87af02da,subnet-11810a2e"
+          VPCid: "{{ cf_vpc_ret.stack_outputs.VPCid }}"
+          SubnetIDs: "{{cf_vpc_ret.stack_outputs.SN1id}},{{cf_vpc_ret.stack_outputs.SN2id}}"
       register: cf_prod_asg_ret
       async: 600
       poll: 30
