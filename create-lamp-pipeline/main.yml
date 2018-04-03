@@ -14,6 +14,7 @@
   vars:
     ec2_keypair_name: ""
     ec2_base_ami: ""
+    aws_region: "us-east-1"
   tasks:
     - name: preflight var check
       fail:
@@ -25,7 +26,7 @@
         cloudformation:
           stack_name: "mkNewAMI"
           state: "present"
-          region: 'us-east-1'
+          region: "{{aws_region}}"
           template: '/opt/aws-repo/cloudformation-templates/ec2-codedeploy/Create-Ubuntu16-LAMP-AMI.yml'
           template_parameters:
             KeyPair: "{{ec2_keypair_name}}"
@@ -38,7 +39,7 @@
           image_ids:
             - "{{ cf_ret.stack_outputs.FinalAMI }}"
         register: descNewAMI
-        until:  "descNewAMI.images[0].state.find('available') != -1"
+        until: "descNewAMI.images[0].state.find('available') != -1"
         retries: 20
         delay: 30
 
@@ -57,7 +58,7 @@
     - name: Create the VPC and subnets
       cloudformation:
         stack_name: shinynewapp-vpc
-        region: !Sub ${AWS::Region}
+        region: "{{aws_region}}"
         template: "/opt/aws-repo/cloudformation-templates/pipeline/create-base-vpc.yml"
         template_parameters:
           VPCcidr: "10.20.0.0/16"
@@ -69,7 +70,7 @@
     - name: Create the staging ASG
       cloudformation:
         stack_name: "shinynewapp-stg"
-        region: !Sub ${AWS::Region}
+        region: "{{aws_region}}"
         template: "/opt/aws-repo/cloudformation-templates/pipeline/create-base-asg.yml"
         template_parameters:
           CustomAMI: "{{ ec2_base_ami }}"
@@ -86,7 +87,7 @@
     - name: Create the production ASG
       cloudformation:
         stack_name: "shinynewapp-prod"
-        region: !Sub ${AWS::Region}
+        region: "{{aws_region}}"
         template: "/opt/aws-repo/cloudformation-templates/pipeline/create-base-asg.yml"
         template_parameters:
           CustomAMI: "{{ ec2_base_ami }}"
@@ -103,7 +104,7 @@
     - name: Create the pipeline
       cloudformation:
         stack_name: "shinynewapp-pipe"
-        region: "us-east-1"
+        region: "{{aws_region}}"
         template: "/opt/aws-repo/cloudformation-templates/pipeline/create-base-pipeline.yml"
         template_parameters:
           AppName: "shinynewapp-app"
