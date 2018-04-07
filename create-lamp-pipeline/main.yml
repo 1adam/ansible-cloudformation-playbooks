@@ -16,11 +16,12 @@
     ec2_base_ami: ""
     aws_region: "us-east-1"
     mgmt_ip: ""
+    ec2_nat_image: ""
   tasks:
     - name: preflight var check
       fail:
         msg: "Missing an important parameter."
-      when: "ec2_keypair_name == ''"
+      when: "ec2_keypair_name == '' or mgmt_ip == '' or ec2_nat_image == ''"
 
     - block:
       - name: "Create a LAMP+CodeDeploy AMI from the latest Ubuntu-64 LTS"
@@ -71,10 +72,6 @@
       async: 300
       poll: 30
 
-    - name: debug dump var
-      debug:
-        var: cf_vpc_ret
-
     - name: Create the staging ASG
       cloudformation:
         stack_name: "brandnewapp-stg"
@@ -115,7 +112,7 @@
       cloudformation:
         stack_name: "brandnewapp-pipe"
         region: "{{aws_region}}"
-        template: "/opt/aws-repo/cloudformation-templates/pipeline/create-base-pipeline.yml"
+        template: "/opt/aws-repo/cloudformation-templates/building-blocks/create-base-pipeline.yml"
         template_parameters:
           AppName: "brandnewapp-app"
           ASG: "{{ cf_stg_asg_ret.stack_outputs.ASGname }}"
