@@ -1,11 +1,13 @@
 ---
 - hosts: localhost
   become: yes
+  vars:
+    repo_loc: "/opt/aws-repo"
   tasks:
     - name: grab repo to local
       git:
         repo: 'https://github.com/1adam/aws.git'
-        dest: '/opt/aws-repo'
+        dest: '{{repo_loc}}'
         version: 'master'
 
 - hosts: localhost
@@ -18,6 +20,7 @@
     mgmt_ip: ""
     ec2_nat_image: ""
     app_name: ""
+    repo_loc: "/opt/aws-repo"
   tasks:
     - name: preflight var check
       fail:
@@ -45,7 +48,7 @@
           stack_name: "{{mk_new_ami_stackname}}"
           state: "present"
           region: "{{aws_region}}"
-          template: '/opt/aws-repo/cloudformation-templates/ec2-codedeploy/Create-Ubuntu16-LAMP-AMI.yml'
+          template: "{{repo_loc}}/cloudformation-templates/ec2-codedeploy/Create-Ubuntu16-LAMP-AMI.yml"
           template_parameters:
             KeyPair: "{{ec2_keypair_name}}"
         register: cf_ret
@@ -91,7 +94,7 @@
       cloudformation:
         stack_name: "{{app_name}}-vpc"
         region: "{{aws_region}}"
-        template: "/opt/aws-repo/cloudformation-templates/building-blocks/create-base-vpc_priv.yml"
+        template: "{{repo_loc}}/cloudformation-templates/building-blocks/create-base-vpc_priv.yml"
         template_parameters:
           VPCcidr: "10.20.0.0/16"
           SNcidrs: "10.20.0.0/24, 10.20.1.0/24, 10.20.2.0/24, 10.20.3.0/24"
@@ -106,7 +109,7 @@
       cloudformation:
         stack_name: "{{app_name}}-stg"
         region: "{{aws_region}}"
-        template: "/opt/aws-repo/cloudformation-templates/building-blocks/create-base-asg.yml"
+        template: "{{repo_loc}}/cloudformation-templates/building-blocks/create-base-asg.yml"
         template_parameters:
           CustomAMI: "{{ ec2_base_ami }}"
           InstType: "t2.nano"
@@ -124,7 +127,7 @@
       cloudformation:
         stack_name: "{{app_name}}-prod"
         region: "{{aws_region}}"
-        template: "/opt/aws-repo/cloudformation-templates/building-blocks/create-base-asg.yml"
+        template: "{{repo_loc}}/cloudformation-templates/building-blocks/create-base-asg.yml"
         template_parameters:
           CustomAMI: "{{ ec2_base_ami }}"
           InstType: "t2.nano"
@@ -158,7 +161,7 @@
       cloudformation:
         stack_name: "{{app_name}}-pipe"
         region: "{{aws_region}}"
-        template: "/opt/aws-repo/cloudformation-templates/building-blocks/create-base-pipeline.yml"
+        template: "{{repo_loc}}/cloudformation-templates/building-blocks/create-base-pipeline.yml"
         template_parameters:
           AppName: "{{app_name}}"
           ASG: "{{ stg_job_result.stack_outputs.ASGname }}"
