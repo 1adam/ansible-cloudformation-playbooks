@@ -22,9 +22,19 @@
     - name: preflight var check
       fail:
         msg: "Missing an important parameter."
-      when: "ec2_keypair_name == '' or mgmt_ip == '' or ec2_nat_image == ''"
+      when: "ec2_keypair_name == '' or mgmt_ip == ''"
 
     - block:
+      - name: "Is there an existing Ubuntu16_LAMP-CodeDeploy_* AMI?"
+        ec2_ami_facts:
+          filters:
+            name: "Ubuntu16_LAMP-CodeDeploy_*"
+        register: find_existing_ec2_ami
+
+      - name: Existing EC2 AMI - set fact to its ID
+        set_fact:
+          ec2_base_ami: "{{ find_existing_ec2_ami.images | sort(attribute='creation_date',reverse=True) | map(attribute='image_id') | list | first }}"
+
       - name: "Create a LAMP+CodeDeploy AMI from the latest Ubuntu-64 LTS"
         cloudformation:
           stack_name: "mkNewAMI"
@@ -57,6 +67,20 @@
         set_fact:
           ec2_base_ami: "{{ cf_ret.stack_outputs.FinalAMI }}"
       when: "ec2_base_ami == ''"
+
+    - block:
+      - name: figure out the NAT image, if not specified
+        ec2_ami_facts:
+          filters:
+            architecture: "x86_64"
+            name: "amzn-ami-vpc-nat-hvm*"
+            description: "*NAT*"
+        register: discover_nat_img
+
+      - name: Found NAT AMI - set fact to its ID
+        set_fact:
+          ec2_nat_image: "{{ discover_nat_img.images | sort(attribute='creation_date',reverse=True) | map(attribute='image_id') | list | first }}"
+      when: "ec2_nat_image == ''"
 
     - name: Create the VPC and subnets
       cloudformation:
