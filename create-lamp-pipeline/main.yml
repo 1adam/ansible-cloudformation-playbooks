@@ -34,10 +34,15 @@
       - name: Existing EC2 AMI - set fact to its ID
         set_fact:
           ec2_base_ami: "{{ find_existing_ec2_ami.images | sort(attribute='creation_date',reverse=True) | map(attribute='image_id') | list | first }}"
+        when: find_existing_ec2_ami.images | length > 0
+
+      - name: "Set the make-new-ami stack name"
+        set_fact:
+          mk_new_ami_stackname: "mkNewAMI-{{ansible_date_time.iso8601_basic_short}}"
 
       - name: "Create a LAMP+CodeDeploy AMI from the latest Ubuntu-64 LTS"
         cloudformation:
-          stack_name: "mkNewAMI"
+          stack_name: "{{mk_new_ami_stackname}}"
           state: "present"
           region: "{{aws_region}}"
           template: '/opt/aws-repo/cloudformation-templates/ec2-codedeploy/Create-Ubuntu16-LAMP-AMI.yml'
@@ -58,7 +63,7 @@
 
       - name: remove the old/tmp stack used to create AMI
         cloudformation:
-          stack_name: "mkNewAMI"
+          stack_name: "{{mk_new_ami_stackname}}"
           state: "absent"
         async: 300
         poll: 0
