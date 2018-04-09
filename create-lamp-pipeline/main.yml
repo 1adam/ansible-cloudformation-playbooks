@@ -168,6 +168,7 @@
           TargetGroupName: "{{ stg_job_result.stack_outputs.TGname }}"
           ASGprod: "{{ prod_job_result.stack_outputs.ASGname }}"
           TargetGroupNamePROD: "{{ prod_job_result.stack_outputs.TGname }}"
+          PipeIncBucketPrefix: "app/latest.tgz"
       register: cf_pipe_ret
       async: 600
       poll: 30
