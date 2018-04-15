@@ -22,6 +22,7 @@
     ec2_bastion_image: ""
     app_name: ""
     repo_loc: "/opt/aws-repo"
+    pipe_inc_bkt_path: "app/latest.tgz"
   tasks:
     - name: preflight var check
       fail:
@@ -191,7 +192,7 @@
           TargetGroupName: "{{ stg_job_result.stack_outputs.TGname }}"
           ASGprod: "{{ prod_job_result.stack_outputs.ASGname }}"
           TargetGroupNamePROD: "{{ prod_job_result.stack_outputs.TGname }}"
-          PipeIncBucketPrefix: "app/latest.tgz"
+          PipeIncBucketPath: "{{ pipe_inc_bkt_path }}"
       register: cf_pipe_ret
       async: 600
       poll: 30
