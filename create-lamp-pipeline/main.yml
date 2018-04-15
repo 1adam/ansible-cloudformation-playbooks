@@ -99,7 +99,7 @@
             description: "*LTS*"
         register: discover_bastion_img
 
-      - name: Found NAT AMI - set fact to its ID
+      - name: Found Bastion AMI - set fact to its ID
         set_fact:
           ec2_bastion_image: "{{ discover_bastion_img.images | sort(attribute='creation_date',reverse=True) | map(attribute='image_id') | list | first }}"
       when: "ec2_bastion_image == ''"
