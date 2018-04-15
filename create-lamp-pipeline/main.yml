@@ -187,7 +187,7 @@
         region: "{{aws_region}}"
         template: "{{repo_loc}}/cloudformation-templates/building-blocks/create-base-pipeline.yml"
         template_parameters:
-          AppName: "{{app_name}}"
+          AppName: "{{app_name | lower }}"
           ASG: "{{ stg_job_result.stack_outputs.ASGname }}"
           TargetGroupName: "{{ stg_job_result.stack_outputs.TGname }}"
           ASGprod: "{{ prod_job_result.stack_outputs.ASGname }}"
