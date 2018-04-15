@@ -19,6 +19,7 @@
     aws_region: "us-east-1"
     mgmt_ip: ""
     ec2_nat_image: ""
+    ec2_bastion_image: ""
     app_name: ""
     repo_loc: "/opt/aws-repo"
   tasks:
@@ -90,6 +91,19 @@
           ec2_nat_image: "{{ discover_nat_img.images | sort(attribute='creation_date',reverse=True) | map(attribute='image_id') | list | first }}"
       when: "ec2_nat_image == ''"
 
+    - block:
+      - name: figure out the Bastion Host image, if not specified
+        ec2_ami_facts:
+          filters:
+            name: "ubuntu/images/hvm-ssd/ubuntu-*-*-amd64-server-*"
+            description: "*LTS*"
+        register: discover_bastion_img
+
+      - name: Found NAT AMI - set fact to its ID
+        set_fact:
+          ec2_bastion_image: "{{ discover_bastion_img.images | sort(attribute='creation_date',reverse=True) | map(attribute='image_id') | list | first }}"
+      when: "ec2_bastion_image == ''"
+
     - name: Create the VPC and subnets
       cloudformation:
         stack_name: "{{app_name}}-vpc"
@@ -100,6 +114,7 @@
           SNcidrs: "10.20.0.0/24, 10.20.1.0/24, 10.20.2.0/24, 10.20.3.0/24"
           KeyPair: "{{ ec2_keypair_name }}"
           NATimage: "{{ec2_nat_image}}"
+          BastionImage: "{{ec2_bastion_image}}"
           MgmtIP: "{{mgmt_ip}}"
       register: cf_vpc_ret
       async: 300
@@ -119,6 +134,9 @@
           VPCid: "{{ cf_vpc_ret.stack_outputs.VPCid }}"
           PubSubnetIDs: "{{cf_vpc_ret.stack_outputs.SN1PubId}},{{cf_vpc_ret.stack_outputs.SN2PubId}}"
           PrivSubnetIDs: "{{cf_vpc_ret.stack_outputs.SN1PrivId}},{{cf_vpc_ret.stack_outputs.SN2PrivId}}"
+          ASGminSize: 1
+          ASGmaxSize: 1
+          ASGdesiredSize: 1
       register: cf_stg_asg_ret
       async: 600
       poll: 0
@@ -137,6 +155,9 @@
           VPCid: "{{ cf_vpc_ret.stack_outputs.VPCid }}"
           PubSubnetIDs: "{{cf_vpc_ret.stack_outputs.SN1PubId}},{{cf_vpc_ret.stack_outputs.SN2PubId}}"
           PrivSubnetIDs: "{{cf_vpc_ret.stack_outputs.SN1PrivId}},{{cf_vpc_ret.stack_outputs.SN2PrivId}}"
+          ASGminSize: 1
+          ASGmaxSize: 1
+          ASGdesiredSize: 1
       register: cf_prod_asg_ret
       async: 600
       poll: 0
@@ -172,3 +193,7 @@
       register: cf_pipe_ret
       async: 600
       poll: 30
+
+    - name: Output value of Bastion Host LB
+      debug:
+        var: cf_vpc_ret.stack_outputs.BHLBEndpoint
