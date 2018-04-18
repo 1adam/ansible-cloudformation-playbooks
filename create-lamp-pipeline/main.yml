@@ -27,7 +27,7 @@
     - name: preflight var check
       fail:
         msg: "Missing an important parameter."
-      when: "ec2_keypair_name == '' or mgmt_ip == ''"
+      when: "ec2_keypair_name == '' or mgmt_ip == '' or app_name == ''"
 
     - block:
       - name: "Is there an existing Ubuntu16_LAMP-CodeDeploy_* AMI?"

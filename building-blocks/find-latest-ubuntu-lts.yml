@@ -1,0 +1,11 @@
+---
+- name: get a list of LTSes
+  ec2_ami_facts:
+    filters:
+      description: "*LTS*"
+      name: "ubuntu/images/hvm-instance/ubuntu-xenial-*-amd64-server-*"
+  register: found_imgs
+
+- name: set the discover'd fact
+  set_fact:
+    ubuntu_16_ami: "{{ found_imgs.images | sort(attribute='creation_date',reverse=True) | map(attribute='image_id') | list | first }}"

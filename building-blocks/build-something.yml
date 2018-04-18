@@ -1,0 +1,14 @@
+---
+- hosts: localhost
+  tasks:
+  - name: figure out latest ubuntu16lts ami
+    import_tasks: find-latest-ubuntu-lts.yml
+
+  - name: debug output ubuntu16ami fact
+    debug:
+      var: ubuntu_16_ami
+
+  - name: loop through a sequence
+    command: echo "1"
+    register: itemNames
+    until: itemNames.stdout.find('1') != -1
